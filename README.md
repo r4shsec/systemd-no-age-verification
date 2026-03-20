@@ -108,7 +108,7 @@ userdbctl user $USER
 
 - [xdg-desktop-portal PR #1922](https://github.com/flatpak/xdg-desktop-portal/pull/1922) — Age verification portal API (draft, open)
 - [archinstall PR #4290](https://github.com/archlinux/archinstall/pull/4290) — Birth date field in Arch installer (locked, pending Arch legal review)
-- [systemd issue #40974](https://github.com/systemd/systemd/pull/40954) — Discussion on `ageGroup` field (watch this)
+- [systemd issue #40974](https://github.com/systemd/systemd/pull/40954) — Added `birthDate` field to JSON user records (watch this)
 - [QubesOS issue #10744](https://github.com/QubesOS/qubes-issues/issues/10744) — Qubes tracking age verification compliance requirements
 
 ---
