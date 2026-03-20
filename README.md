@@ -41,7 +41,7 @@ The concern is not that the contributors are malicious — they are established,
 
 ```bash
 pacman -S base-devel git meson ninja gperf python-jinja \
-  libcap libmount dbus openssl cryptsetup tpm2-tss \
+dbus openssl cryptsetup tpm2-tss \
   curl libidn2 p11-kit libfido2
 ```
 
