@@ -1,42 +1,129 @@
-![Systemd](http://brand.systemd.io/assets/page-logo.png)
+# systemd — No Age Verification
 
-System and Service Manager
+> A fork of [systemd](https://github.com/systemd/systemd) with age verification infrastructure removed.
 
-[![OBS Packages Status](https://build.opensuse.org/projects/system:systemd/packages/systemd/badge.svg?type=default)](https://build.opensuse.org/project/show/system:systemd)<br/>
-[![Semaphore CI 2.0 Build Status](https://the-real-systemd.semaphoreci.com/badges/systemd/branches/main.svg?style=shields)](https://the-real-systemd.semaphoreci.com/projects/systemd)<br/>
-[![Coverity Scan Status](https://scan.coverity.com/projects/350/badge.svg)](https://scan.coverity.com/projects/systemd)<br/>
-[![OSS-Fuzz Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/systemd.svg)](https://oss-fuzz-build-logs.storage.googleapis.com/index.html#systemd)<br/>
-[![CIFuzz](https://github.com/systemd/systemd/actions/workflows/cifuzz.yml/badge.svg)](https://github.com/systemd/systemd/actions/workflows/cifuzz.yml)</br>
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1369/badge)](https://bestpractices.coreinfrastructure.org/projects/1369)<br/>
-[![Fossies codespell report](https://fossies.org/linux/test/systemd-main.tar.gz/codespell.svg)](https://fossies.org/linux/test/systemd-main.tar.gz/codespell.html)</br>
-[![Translation status](https://translate.fedoraproject.org/widget/systemd/svg-badge.svg)](https://translate.fedoraproject.org/engage/systemd/)</br>
-[![Coverage Status](https://coveralls.io/repos/github/systemd/systemd/badge.svg?branch=main)](https://coveralls.io/github/systemd/systemd?branch=main)</br>
-[![Packaging status](https://repology.org/badge/tiny-repos/systemd.svg)](https://repology.org/project/systemd/versions)</br>
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/systemd/systemd/badge)](https://securityscorecards.dev/viewer/?platform=github.com&org=systemd&repo=systemd)
+---
 
-## Details
+## What Was Removed
 
-Most documentation is available on [systemd's web site](https://systemd.io/).
+Three commits have been reverted from upstream systemd `main`:
 
-Assorted, older, general information about systemd can be found in the [systemd Wiki](https://www.freedesktop.org/wiki/Software/systemd).
+| Commit | Description |
+|--------|-------------|
+| `acb6624fa1` | userdb: add birthDate field to JSON user records (#40954) — merge commit |
+| `7a858878a0` | userdb: add birthDate field to JSON user records |
+| `c72860d5f6` | userdb: mark PII fields as sensitive in user records |
 
-Information about build requirements is provided in the [README file](README).
+These commits introduce a `birthDate` field into systemd's userdb JSON user records, along with supporting parser infrastructure (`parse_birth_date`, `BIRTH_DATE_UNSET`, `allow_pre_epoch` calendar parsing).
 
-Consult our [NEWS file](NEWS) for information about what's new in the most recent systemd versions.
+---
 
-Please see the [Code Map](docs/ARCHITECTURE.md) for information about this repository's layout and content.
+## Why
 
-Please see the [Hacking guide](docs/HACKING.md) for information on how to hack on systemd and test your modifications.
+Several US state laws and international regulations are driving OS-level age verification infrastructure into the Linux stack:
 
-Please see our [Contribution Guidelines](docs/CONTRIBUTING.md) for more information about filing GitHub Issues and posting GitHub Pull Requests.
+- **California AB-1043** (not yet enacted)
+- **Colorado SB26-051**
+- **Brazil Lei 15.211/2025**
 
-When preparing patches for systemd, please follow our [Coding Style Guidelines](docs/CODING_STYLE.md).
+In response, a coordinated effort is pushing age verification changes across multiple projects simultaneously — systemd userdb, xdg-desktop-portal ([PR #1922](https://github.com/flatpak/xdg-desktop-portal/pull/1922)), and Arch Linux's installer ([PR #4290](https://github.com/archlinux/archinstall/pull/4290)).
 
-If you are looking for support, please contact our [mailing list](https://lists.freedesktop.org/mailman/listinfo/systemd-devel), join our [IRC channel #systemd on libera.chat](https://web.libera.chat/#systemd) or [Matrix channel](https://matrix.to/#/#systemd-project:matrix.org)
+The concern is not that the contributors are malicious — they are established, publicly known developers. The concern is the **infrastructure itself**:
 
-Stable branches with backported patches are available in the [stable repo](https://github.com/systemd/systemd-stable).
+- Once `birthDate` is stored in systemd userdb, the xdg-desktop-portal age verification API can expose it to any Flatpak app with the right manifest permission.
+- The API design allows apps to send fine-grained age gates (e.g. `[13, 14, 15, 16, 17, 18]`) to effectively extract a user's exact date of birth — this was acknowledged as a risk in the xdg-portal PR discussion itself.
+- **The law is not yet enacted.** This infrastructure is being built preemptively.
+- Users outside California and Colorado — the vast majority of Linux users worldwide — have no legal obligation and may be subject to conflicting privacy laws (e.g. GDPR in Europe) if this data is collected.
 
-We have a security bug bounty program sponsored by the [Sovereign Tech Fund](https://www.sovereigntechfund.de/) hosted on [YesWeHack](https://yeswehack.com/programs/systemd-bug-bounty-program)
+## Building
 
-Repositories with distribution packages built from git main are [available on OBS](https://software.opensuse.org//download.html?project=system%3Asystemd&package=systemd),
-and also repositories with [packages built from the latest stable release](https://software.opensuse.org//download.html?project=system%3Asystemd%3Astable&package=systemd)
+### Dependencies (Arch Linux)
+
+```bash
+pacman -S base-devel git meson ninja gperf python-jinja \
+  libcap libmount dbus openssl cryptsetup tpm2-tss \
+  curl libidn2 p11-kit libfido2
+```
+
+### Build
+
+```bash
+git clone https://github.com/r4shsec/systemd-no-age-verification.git
+cd systemd-no-age-verification
+meson setup build/ --prefix=/usr
+ninja -C build/
+```
+
+### Before Installing — Back Up First
+
+```bash
+sudo cp -r /usr/lib/systemd /usr/lib/systemd.bak
+sudo cp /usr/bin/systemctl /usr/bin/systemctl.bak
+```
+
+### Install
+
+```bash
+sudo ninja -C build/ install
+sudo systemctl daemon-reexec
+```
+
+### Rollback If Needed
+
+```bash
+sudo cp -r /usr/lib/systemd.bak /usr/lib/systemd
+sudo cp /usr/bin/systemctl.bak /usr/bin/systemctl
+sudo systemctl daemon-reexec
+```
+
+---
+
+## Verification
+
+After building, confirm no birthdate code was compiled in:
+
+```bash
+nm build/systemd | grep -i birth
+nm build/userdbctl | grep -i birth
+strings build/userdbctl | grep -i birth
+```
+
+All three should return **empty**.
+
+Check a user record contains no `birthDate` field:
+
+```bash
+build/userdbctl user root
+```
+
+Or on an installed system:
+
+```bash
+userdbctl user $USER
+```
+
+---
+
+## Related
+
+- [xdg-desktop-portal PR #1922](https://github.com/flatpak/xdg-desktop-portal/pull/1922) — Age verification portal API (draft, open)
+- [archinstall PR #4290](https://github.com/archlinux/archinstall/pull/4290) — Birth date field in Arch installer (locked, pending Arch legal review)
+- [systemd issue #40974](https://github.com/systemd/systemd/issues/40974) — Discussion on `ageGroup` field (watch this)
+- [QubesOS issue #10744](https://github.com/QubesOS/qubes-issues/issues/10744) — Qubes tracking age verification compliance requirements
+
+---
+
+## Distros That May Ship Without Age Verification
+
+- **Artix Linux** — stated it will not comply
+- **Void Linux** — source-based, full compile control
+- **Gentoo** — USE flags give fine-grained control
+- **Arch Linux** — pending official legal stance (see archinstall PR)
+
+---
+
+## Disclaimer
+
+This fork is provided for privacy-conscious users who wish to opt out of age verification infrastructure before any legal mandate requires it. It does not condone circumventing any applicable law. Users are responsible for their own legal compliance.
+
+This fork is not affiliated with the systemd project or any of its contributors.
