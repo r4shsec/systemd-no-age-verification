@@ -4,6 +4,9 @@
 
 ---
 
+> [!NOTE]
+> This only affects **systemd v260+**. Most Linux Operating Systems (OS) are alright as it comes with **systemd v259**.
+
 ## What Was Removed
 
 Three commits have been reverted from upstream systemd `main`:
